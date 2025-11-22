@@ -29,7 +29,7 @@
         <!-- Hero Section -->
         <section class="hero">
             <div class="avatar-container">
-                <img src="roblox_cute_avatar.png" alt="Avatar" class="avatar"
+                <img src="2.jpg" alt="Avatar" class="avatar"
                     onerror="this.src='https://tr.rbxcdn.com/30c9d357716151a6d12a188c65757d85/420/420/Image/Png'">
             </div>
             <div class="glass-card">
@@ -85,6 +85,8 @@
                         <option value="easy">Fácil (Random)</option>
                         <option value="medium">Medio (Agresivo)</option>
                         <option value="hard">Difícil (Minimax)</option>
+                        <option value="local">1 vs 1 (Local)</option>
+                        <option value="online">1 vs 1 (Online)</option>
                     </select>
                     <button id="start-game-btn" class="action-btn">Nuevo Juego</button>
                 </div>
@@ -115,6 +117,7 @@
                 </div>
             </div>
         </section>
+        -->
 
         <!-- Tower Game Section 
         <section class="tower-section" id="tower-section">
@@ -134,6 +137,45 @@
         -->
     </main>
 
+    <!-- Chat Button -->
+    <button id="chat-toggle-btn" class="chat-float-btn">
+        <i class="fa-solid fa-comments"></i> Te extraño tocino 🥓
+    </button>
+
+    <!-- Chat Modal -->
+    <div id="chat-modal" class="chat-modal hidden">
+        <div class="glass-card chat-card">
+            <div class="chat-header">
+                <h3>Chat Secreto 💖</h3>
+                <button id="close-chat-btn" class="close-btn"><i class="fa-solid fa-times"></i></button>
+            </div>
+
+            <!-- Connection Panel -->
+            <div id="connection-panel" class="connection-panel">
+                <p>Para hablar o jugar online, conéctate:</p>
+                <div class="connection-controls">
+                    <button id="create-room-btn" class="action-btn small">Crear Sala</button>
+                    <input type="text" id="room-id-input" placeholder="Pegar ID aquí">
+                    <button id="join-room-btn" class="action-btn small">Unirse</button>
+                </div>
+                <div id="my-id-display" class="id-display hidden">
+                    <span>Tu ID: </span><span id="my-id-text" class="highlight-text">...</span>
+                    <button id="copy-id-btn" class="icon-btn"><i class="fa-solid fa-copy"></i></button>
+                </div>
+                <div id="connection-status" class="status-text">Desconectado</div>
+            </div>
+
+            <div class="chat-messages" id="chat-messages">
+                <div class="message system">¡Bienvenido al chat! Conéctate para hablar.</div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Escribe un mensaje..." disabled>
+                <button id="send-msg-btn" class="action-btn small" disabled><i
+                        class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
     <audio id="bg-music" loop autoplay>
         <source src="Coldplay - Sparks.mp3" type="audio/mpeg">
         Tu navegador no soporta el elemento de audio.
@@ -143,6 +185,7 @@
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="script.js"></script>
 </body>
 

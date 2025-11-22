@@ -44,14 +44,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Handle Overlay Click
+    // Handle Overlay Click
     const overlay = document.getElementById('start-overlay');
     overlay.addEventListener('click', () => {
-        audio.play().then(() => {
-            isPlaying = true;
-            updatePlayIcon();
-            overlay.style.opacity = '0';
-            setTimeout(() => overlay.style.display = 'none', 500);
-        });
+        audio.play()
+            .then(() => {
+                isPlaying = true;
+                updatePlayIcon();
+            })
+            .catch(error => {
+                console.log("Audio play failed:", error);
+                alert("No se pudo reproducir la música, pero puedes entrar. 🎵");
+            })
+            .finally(() => {
+                overlay.style.opacity = '0';
+                setTimeout(() => overlay.style.display = 'none', 500);
+            });
     });
 
     function updatePlayIcon() {
@@ -70,8 +78,8 @@ document.addEventListener('DOMContentLoaded', () => {
     createParticles();
 
     initChessGame();
-    initDominoGame();
-    initTowerGame();
+    // initDominoGame(); // Commented out - section not in HTML
+    // initTowerGame(); // Commented out - section not in HTML
 });
 
 function createParticles() {
@@ -115,15 +123,327 @@ function createParticles() {
 }
 
 // --- Chess Game Logic ---
+// Global PeerJS variables
+let peer = null;
+let conn = null;
+let myId = null;
+let isHost = false;
+
+function initChat() {
+    const chatModal = document.getElementById('chat-modal');
+    const chatToggleBtn = document.getElementById('chat-toggle-btn');
+    const closeChatBtn = document.getElementById('close-chat-btn');
+    const createRoomBtn = document.getElementById('create-room-btn');
+    const joinRoomBtn = document.getElementById('join-room-btn');
+    const roomIdInput = document.getElementById('room-id-input');
+    const myIdDisplay = document.getElementById('my-id-display');
+    const myIdText = document.getElementById('my-id-text');
+    const copyIdBtn = document.getElementById('copy-id-btn');
+    const connectionStatus = document.getElementById('connection-status');
+    const chatInput = document.getElementById('chat-input');
+    const sendMsgBtn = document.getElementById('send-msg-btn');
+    const chatMessages = document.getElementById('chat-messages');
+
+    // Toggle Chat
+    chatToggleBtn.addEventListener('click', () => {
+        chatModal.classList.remove('hidden');
+        if (!peer) {
+            initializePeer();
+        }
+    });
+
+    closeChatBtn.addEventListener('click', () => {
+        chatModal.classList.add('hidden');
+    });
+
+    // Initialize Peer
+    function initializePeer() {
+        if (peer) return;
+        peer = new Peer();
+
+        peer.on('open', (id) => {
+            myId = id;
+            console.log('My peer ID is: ' + id);
+            // Auto-show ID if we just opened
+            myIdText.innerText = myId;
+        });
+
+        peer.on('connection', (c) => {
+            handleConnection(c);
+            isHost = true;
+        });
+
+        // Create Room
+        createRoomBtn.addEventListener('click', () => {
+            if (!peer) {
+                initializePeer();
+                // Wait for peer to be ready before showing ID
+                setTimeout(() => {
+                    if (myId) {
+                        myIdDisplay.classList.remove('hidden');
+                        updateConnectionStatus("Esperando conexión...");
+                        sendNotification(myId);
+                    }
+                }, 500);
+            } else {
+                myIdDisplay.classList.remove('hidden');
+                updateConnectionStatus("Esperando conexión...");
+                sendNotification(myId);
+            }
+        });
+
+        // Join Room
+        joinRoomBtn.addEventListener('click', () => {
+            const destId = roomIdInput.value.trim();
+            if (!destId) return;
+            if (!peer) initializePeer();
+
+            const c = peer.connect(destId);
+            handleConnection(c);
+            isHost = false;
+            updateConnectionStatus("Conectando...");
+        });
+
+        function handleConnection(c) {
+            conn = c;
+
+            conn.on('open', () => {
+                updateConnectionStatus("¡Conectado!");
+                enableChat();
+                // If chess game is in online mode, reset it?
+            });
+
+            conn.on('data', (data) => {
+                if (data.type === 'chat') {
+                    addMessage(data.msg, 'received');
+                } else if (data.type === 'move') {
+                    handleRemoteMove(data);
+                }
+            });
+
+            conn.on('close', () => {
+                updateConnectionStatus("Desconectado.");
+                disableChat();
+            });
+        }
+
+        function updateConnectionStatus(msg) {
+            connectionStatus.innerText = msg;
+        }
+
+        function enableChat() {
+            chatInput.disabled = false;
+            sendMsgBtn.disabled = false;
+        }
+
+        function disableChat() {
+            chatInput.disabled = true;
+            sendMsgBtn.disabled = true;
+        }
+
+        // Send Message
+        function sendMessage() {
+            const msg = chatInput.value.trim();
+            if (!msg || !conn) return;
+
+            conn.send({ type: 'chat', msg: msg });
+            addMessage(msg, 'sent');
+            chatInput.value = '';
+        }
+
+        sendMsgBtn.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Copy ID Button
+        copyIdBtn.addEventListener('click', () => {
+            if (myId) {
+                navigator.clipboard.writeText(myId).then(() => {
+                    copyIdBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+                    setTimeout(() => {
+                        copyIdBtn.innerHTML = '<i class="fa-solid fa-copy"></i>';
+                    }, 2000);
+                }).catch(err => console.log('Copy failed:', err));
+            }
+        });
+
+        function addMessage(msg, type) {
+            const div = document.createElement('div');
+            div.classList.add('message', type);
+            div.innerText = msg;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function sendNotification(peerId) {
+            fetch('https://ntfy.sh/tocino', {
+                method: 'POST',
+                body: peerId,
+                headers: {
+                    'Title': '',
+                    'Priority': 'high',
+                    'Tags': 'key'
+                }
+            }).catch(err => console.log('Notification error:', err));
+        }
+    }
+}
+
+// --- Chess Game Logic ---
 function initChessGame() {
     let board = null;
     let game = new Chess();
     const statusEl = document.getElementById('game-status');
     const difficultySelect = document.getElementById('difficulty');
+    let aiWorker = null;
+
+    // Initialize Web Worker
+    const workerCode = `
+        importScripts('https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js');
+
+        self.onmessage = function(e) {
+            const { fen, difficulty } = e.data;
+            const game = new Chess(fen);
+            
+            let bestMove = null;
+            
+            if (difficulty === 'easy') {
+                const possibleMoves = game.moves();
+                if (possibleMoves.length > 0) {
+                    const randomIdx = Math.floor(Math.random() * possibleMoves.length);
+                    bestMove = possibleMoves[randomIdx];
+                }
+            } else if (difficulty === 'medium') {
+                const possibleMoves = game.moves({ verbose: true });
+                if (possibleMoves.length > 0) {
+                    const captures = possibleMoves.filter(m => m.flags.includes('c') || m.flags.includes('e'));
+                    if (captures.length > 0) {
+                        const randomIdx = Math.floor(Math.random() * captures.length);
+                        bestMove = captures[randomIdx];
+                    } else {
+                        const randomIdx = Math.floor(Math.random() * possibleMoves.length);
+                        bestMove = possibleMoves[randomIdx];
+                    }
+                }
+            } else {
+                // Hard: Minimax
+                bestMove = getBestMove(game);
+            }
+            
+            self.postMessage(bestMove);
+        };
+
+        function getBestMove(game) {
+            const possibleMoves = game.moves();
+            let bestMove = null;
+            let bestValue = -9999;
+
+            possibleMoves.sort(() => Math.random() - 0.5);
+
+            for (let i = 0; i < possibleMoves.length; i++) {
+                const move = possibleMoves[i];
+                game.move(move);
+                const boardValue = -minimax(game, 2, -10000, 10000, false);
+                game.undo();
+                if (boardValue > bestValue) {
+                    bestValue = boardValue;
+                    bestMove = move;
+                }
+            }
+            return bestMove || possibleMoves[0];
+        }
+
+        function minimax(game, depth, alpha, beta, isMaximizingPlayer) {
+            if (depth === 0 || game.game_over()) {
+                return evaluateBoard(game.board());
+            }
+
+            const possibleMoves = game.moves();
+
+            if (isMaximizingPlayer) {
+                let bestVal = -9999;
+                for (let i = 0; i < possibleMoves.length; i++) {
+                    game.move(possibleMoves[i]);
+                    bestVal = Math.max(bestVal, minimax(game, depth - 1, alpha, beta, !isMaximizingPlayer));
+                    game.undo();
+                    alpha = Math.max(alpha, bestVal);
+                    if (beta <= alpha) return bestVal;
+                }
+                return bestVal;
+            } else {
+                let bestVal = 9999;
+                for (let i = 0; i < possibleMoves.length; i++) {
+                    game.move(possibleMoves[i]);
+                    bestVal = Math.min(bestVal, minimax(game, depth - 1, alpha, beta, !isMaximizingPlayer));
+                    game.undo();
+                    beta = Math.min(beta, bestVal);
+                    if (beta <= alpha) return bestVal;
+                }
+                return bestVal;
+            }
+        }
+
+        function evaluateBoard(board) {
+            let totalEvaluation = 0;
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    totalEvaluation += getPieceValue(board[i][j]);
+                }
+            }
+            return totalEvaluation;
+        }
+
+        function getPieceValue(piece) {
+            if (piece === null) return 0;
+            const getAbsoluteValue = function (piece) {
+                if (piece.type === 'p') return 10;
+                if (piece.type === 'r') return 50;
+                if (piece.type === 'n') return 30;
+                if (piece.type === 'b') return 30;
+                if (piece.type === 'q') return 90;
+                if (piece.type === 'k') return 900;
+                return 0;
+            };
+            const absoluteValue = getAbsoluteValue(piece);
+            return piece.color === 'w' ? absoluteValue : -absoluteValue;
+        }
+    `;
+
+    const blob = new Blob([workerCode], { type: 'application/javascript' });
+    aiWorker = new Worker(URL.createObjectURL(blob));
+
+    aiWorker.onmessage = function (e) {
+        const bestMove = e.data;
+        if (bestMove) {
+            game.move(bestMove);
+            board.position(game.fen());
+            updateStatus();
+        }
+    };
 
     function onDragStart(source, piece, position, orientation) {
         if (game.game_over()) return false;
-        // Only allow user to move white pieces
+
+        const mode = difficultySelect.value;
+
+        // Local 1v1: Allow everything
+        if (mode === 'local') return true;
+
+        // Online 1v1: Check turn and color
+        if (mode === 'online') {
+            if (!conn) {
+                alert("¡Conéctate con tu amigo primero en el chat!");
+                return false;
+            }
+            // Host plays White, Joiner plays Black
+            const myColor = isHost ? 'w' : 'b';
+            if (game.turn() !== myColor) return false;
+            if (piece.charAt(0) !== myColor) return false;
+            return true;
+        }
+
+        // Vs Bot: Only allow white
         if (piece.search(/^b/) !== -1) return false;
     }
 
@@ -140,9 +460,37 @@ function initChessGame() {
 
         updateStatus();
 
-        // AI Turn
-        window.setTimeout(makeRandomMove, 250);
+        const mode = difficultySelect.value;
+
+        // Online: Send move
+        if (mode === 'online' && conn) {
+            conn.send({
+                type: 'move',
+                from: source,
+                to: target
+            });
+        }
+
+        // AI Turn (only if not local/online)
+        if (mode !== 'local' && mode !== 'online' && !game.game_over()) {
+            statusEl.innerText = 'Pensando...';
+            aiWorker.postMessage({
+                fen: game.fen(),
+                difficulty: difficultySelect.value
+            });
+        }
     }
+
+    // Handle Remote Move
+    window.handleRemoteMove = function (data) {
+        game.move({
+            from: data.from,
+            to: data.to,
+            promotion: 'q'
+        });
+        board.position(game.fen());
+        updateStatus();
+    };
 
     function onSnapEnd() {
         board.position(game.fen());
@@ -168,118 +516,6 @@ function initChessGame() {
         statusEl.innerText = status;
     }
 
-    function makeRandomMove() {
-        if (game.game_over()) return;
-
-        const difficulty = difficultySelect.value;
-        let move = null;
-
-        if (difficulty === 'easy') {
-            const possibleMoves = game.moves();
-            if (possibleMoves.length === 0) return;
-            const randomIdx = Math.floor(Math.random() * possibleMoves.length);
-            game.move(possibleMoves[randomIdx]);
-        } else if (difficulty === 'medium') {
-            // Simple evaluation: try to capture, otherwise random
-            const possibleMoves = game.moves({ verbose: true });
-            if (possibleMoves.length === 0) return;
-
-            // Find captures
-            const captures = possibleMoves.filter(m => m.flags.includes('c') || m.flags.includes('e'));
-            if (captures.length > 0) {
-                const randomIdx = Math.floor(Math.random() * captures.length);
-                game.move(captures[randomIdx]);
-            } else {
-                const randomIdx = Math.floor(Math.random() * possibleMoves.length);
-                game.move(possibleMoves[randomIdx]);
-            }
-        } else {
-            // Hard: Minimax (Depth 2 for performance in browser without worker)
-            const bestMove = getBestMove(game);
-            game.move(bestMove);
-        }
-
-        board.position(game.fen());
-        updateStatus();
-    }
-
-    // Basic Minimax for "Hard"
-    function getBestMove(game) {
-        const possibleMoves = game.moves();
-        let bestMove = null;
-        let bestValue = -9999;
-
-        // Shuffle moves to add variety if scores are equal
-        possibleMoves.sort(() => Math.random() - 0.5);
-
-        for (let i = 0; i < possibleMoves.length; i++) {
-            const move = possibleMoves[i];
-            game.move(move);
-            const boardValue = -minimax(game, 2, -10000, 10000, false);
-            game.undo();
-            if (boardValue > bestValue) {
-                bestValue = boardValue;
-                bestMove = move;
-            }
-        }
-        return bestMove || possibleMoves[0];
-    }
-
-    function minimax(game, depth, alpha, beta, isMaximizingPlayer) {
-        if (depth === 0 || game.game_over()) {
-            return evaluateBoard(game.board());
-        }
-
-        const possibleMoves = game.moves();
-
-        if (isMaximizingPlayer) {
-            let bestVal = -9999;
-            for (let i = 0; i < possibleMoves.length; i++) {
-                game.move(possibleMoves[i]);
-                bestVal = Math.max(bestVal, minimax(game, depth - 1, alpha, beta, !isMaximizingPlayer));
-                game.undo();
-                alpha = Math.max(alpha, bestVal);
-                if (beta <= alpha) return bestVal;
-            }
-            return bestVal;
-        } else {
-            let bestVal = 9999;
-            for (let i = 0; i < possibleMoves.length; i++) {
-                game.move(possibleMoves[i]);
-                bestVal = Math.min(bestVal, minimax(game, depth - 1, alpha, beta, !isMaximizingPlayer));
-                game.undo();
-                beta = Math.min(beta, bestVal);
-                if (beta <= alpha) return bestVal;
-            }
-            return bestVal;
-        }
-    }
-
-    function evaluateBoard(board) {
-        let totalEvaluation = 0;
-        for (let i = 0; i < 8; i++) {
-            for (let j = 0; j < 8; j++) {
-                totalEvaluation += getPieceValue(board[i][j]);
-            }
-        }
-        return totalEvaluation;
-    }
-
-    function getPieceValue(piece) {
-        if (piece === null) return 0;
-        const getAbsoluteValue = function (piece) {
-            if (piece.type === 'p') return 10;
-            if (piece.type === 'r') return 50;
-            if (piece.type === 'n') return 30;
-            if (piece.type === 'b') return 30;
-            if (piece.type === 'q') return 90;
-            if (piece.type === 'k') return 900;
-            return 0;
-        };
-        const absoluteValue = getAbsoluteValue(piece);
-        return piece.color === 'w' ? absoluteValue : -absoluteValue;
-    }
-
     const config = {
         draggable: true,
         position: 'start',
@@ -298,6 +534,9 @@ function initChessGame() {
         board.start();
         updateStatus();
     });
+
+    // Init Chat
+    initChat();
 }
 
 // --- Domino Game Logic ---
