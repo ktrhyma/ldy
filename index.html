@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Para Lady 💖</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+</head>
+
+<body>
+    <div class="background-overlay"></div>
+
+    <!-- Click to Start Overlay -->
+    <div id="start-overlay"
+        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; justify-content: center; align-items: center; cursor: pointer;">
+        <div style="text-align: center; color: white;">
+            <h1 style="font-size: 3rem; margin-bottom: 1rem;">Haz clic para entrar 💖</h1>
+            <p style="font-size: 1.5rem;">(y activar la música )</p>
+        </div>
+    </div>
+
+    <main class="container">
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="avatar-container">
+                <img src="roblox_cute_avatar.png" alt="Avatar" class="avatar"
+                    onerror="this.src='https://tr.rbxcdn.com/30c9d357716151a6d12a188c65757d85/420/420/Image/Png'">
+            </div>
+            <div class="glass-card">
+                <h1 class="glow-text">Hola, Lady <span class="heart">💖</span></h1>
+                <p class="subtitle">Bienvenida a tu espacio especial</p>
+            </div>
+        </section>
+
+        <!-- Message Section -->
+        <section class="message-section">
+            <div class="glass-card message-card">
+                <h2>Un pequeño detalle para ti</h2>
+                <p>
+                    Quería hacer algo bonito, algo que te recuerde lo genial que eres.
+                    Aunque nos estamos conociendo, me encanta pasar tiempo contigo.
+                    Espero que este pequeño rincón te guste tanto como a mí me gusta hablar contigo.
+                </p>
+                <div class="roblox-icon">
+                    <i class="fa-solid fa-gamepad"></i>
+                </div>
+            </div>
+        </section>
+
+        <!-- Music Player Section -->
+        <section class="music-section">
+            <div class="glass-card player-card">
+                <div class="track-info">
+                    <div class="track-details">
+                        <h3>Nuestra Canción</h3>
+                        <p>Música Especial</p>
+                    </div>
+                </div>
+                <div class="controls">
+                    <button id="prev-btn" class="control-btn"><i class="fa-solid fa-backward-step"></i></button>
+                    <button id="play-btn" class="control-btn play-pause"><i class="fa-solid fa-play"></i></button>
+                    <button id="next-btn" class="control-btn"><i class="fa-solid fa-forward-step"></i></button>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Chess Game Section -->
+        <section class="chess-section" id="chess-section">
+            <div class="glass-card game-card">
+                <h2>Ajedrez vs TociBOT 🤖</h2>
+                <p>Demuestra tu estrategia.</p>
+
+                <div class="game-controls">
+                    <label for="difficulty">Dificultad:</label>
+                    <select id="difficulty">
+                        <option value="easy">Fácil (Random)</option>
+                        <option value="medium">Medio (Agresivo)</option>
+                        <option value="hard">Difícil (Minimax)</option>
+                    </select>
+                    <button id="start-game-btn" class="action-btn">Nuevo Juego</button>
+                </div>
+
+                <div id="game-status" class="status-text">Blancas mueven</div>
+
+                <!-- The Chessboard Container -->
+                <div id="board" style="width: 100%; max-width: 400px; margin: 0 auto;"></div>
+            </div>
+        </section>
+
+        <!-- Domino Game Section 
+        <section class="domino-section" id="domino-section">
+            <div class="glass-card game-card">
+                <h2>Dominó vs Robot 🎲</h2>
+                <p>Arrastra o haz clic para jugar.</p>
+
+                <div class="game-controls">
+                    <button id="start-domino-btn" class="action-btn">Nuevo Juego</button>
+                </div>
+
+                <div id="domino-status" class="status-text">Presiona Nuevo Juego</div>
+
+                <div class="domino-area">
+                    <div class="hand-area" id="robot-hand"></div>
+                    <div class="board-area" id="domino-board"></div>
+                    <div class="hand-area" id="player-hand"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tower Game Section 
+        <section class="tower-section" id="tower-section">
+            <div class="glass-card game-card">
+                <h2>Torre Neón 🏗️</h2>
+                <p>Apila los bloques lo más alto posible.</p>
+
+                <div class="game-controls">
+                    <button id="start-tower-btn" class="action-btn">Jugar</button>
+                </div>
+
+                <div id="tower-score" class="status-text">Puntaje: 0</div>
+
+                <canvas id="tower-canvas" width="300" height="400"></canvas>
+            </div>
+        </section>
+        -->
+    </main>
+
+    <audio id="bg-music" loop autoplay>
+        <source src="Coldplay - Sparks.mp3" type="audio/mpeg">
+        Tu navegador no soporta el elemento de audio.
+    </audio>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
